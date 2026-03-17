@@ -487,7 +487,7 @@ export default function Home() {
           cursor: 'pointer',
         }}
       >
-        hazefm
+        haze.fm
       </div>
 
       {/* Card */}
