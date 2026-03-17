@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getMoodTags, MOOD_OPTIONS } from './lib/moodMap';
 import { getTracksByTags, getTracksByArtist, Track } from './lib/lastfm';
 import { searchYouTube } from './lib/youtube';
@@ -15,8 +15,6 @@ const BG_VIDEOS = [
   'mQ-W0BjkaDY',
   '8NKw--UU8K8',
 ];
-
-
 
 export default function Home() {
   const [tab, setTab] = useState<'mood' | 'artist'>('mood');
@@ -33,7 +31,16 @@ export default function Home() {
   const [ytLoading, setYtLoading] = useState(false);
   const [paused, setPaused] = useState(false);
   const [quotaError, setQuotaError] = useState(false);
+  const [playlistOpen, setPlaylistOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const fetchTracks = async () => {
     if (tab === 'mood') {
@@ -56,6 +63,7 @@ export default function Home() {
     setLoading(false);
     setSubmitted(true);
     setPaused(false);
+    setPlaylistOpen(false);
     if (results.length > 0) loadYouTubeVideo(results[0]);
   };
 
@@ -68,6 +76,7 @@ export default function Home() {
     setCurrentIndex(0);
     setLoading(false);
     setPaused(false);
+    setPlaylistOpen(false);
     if (results.length > 0) loadYouTubeVideo(results[0]);
   };
 
@@ -75,9 +84,7 @@ export default function Home() {
     setYtLoading(true);
     setPaused(false);
     const { videoId, error } = await searchYouTube(track.name, track.artist);
-    if (error === 'quota') {
-      setQuotaError(true);
-    }
+    if (error === 'quota') setQuotaError(true);
     setCurrentYtId(videoId);
     setYtLoading(false);
   };
@@ -91,6 +98,7 @@ export default function Home() {
     setCurrentYtId(null);
     setPaused(false);
     setQuotaError(false);
+    setPlaylistOpen(false);
   };
 
   const skipTrack = async () => {
@@ -102,6 +110,7 @@ export default function Home() {
   const selectTrack = async (index: number) => {
     setCurrentIndex(index);
     await loadYouTubeVideo(tracks[index]);
+    if (isMobile) setPlaylistOpen(false);
   };
 
   const shuffleTracks = async () => {
@@ -114,13 +123,9 @@ export default function Home() {
   const togglePause = () => {
     if (iframeRef.current) {
       if (paused) {
-        iframeRef.current.contentWindow?.postMessage(
-          '{"event":"command","func":"playVideo","args":""}', '*'
-        );
+        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
       } else {
-        iframeRef.current.contentWindow?.postMessage(
-          '{"event":"command","func":"pauseVideo","args":""}', '*'
-        );
+        iframeRef.current.contentWindow?.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
       }
       setPaused(!paused);
     }
@@ -137,8 +142,8 @@ export default function Home() {
     border: 'none',
     color: '#7ababa',
     fontFamily: 'var(--font-mono)',
-    fontSize: '0.7rem',
-    letterSpacing: '0.2em',
+    fontSize: isMobile ? '0.65rem' : '0.7rem',
+    letterSpacing: '0.15em',
     cursor: 'pointer',
   };
 
@@ -236,44 +241,40 @@ export default function Home() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '1.25rem 2rem',
+          padding: isMobile ? '1rem' : '1.25rem 2rem',
           borderBottom: '1px solid #0d2b2b',
           position: 'relative',
           zIndex: 4,
           background: 'rgba(8, 8, 16, 0.4)',
         }}>
-          <div
-            onClick={handleBack}
-            style={{
-              fontSize: '1.1rem',
-              color: '#4a9a9a',
-              letterSpacing: '0.5em',
-              fontWeight: 700,
-              fontStyle: 'italic',
-              cursor: 'pointer',
-            }}
-          >haze.fm</div>
+          <div onClick={handleBack} style={{
+            fontSize: isMobile ? '0.9rem' : '1.1rem',
+            color: '#4a9a9a',
+            letterSpacing: '0.5em',
+            fontWeight: 700,
+            fontStyle: 'italic',
+            cursor: 'pointer',
+          }}>haze.fm</div>
 
           <div style={{
             fontSize: '0.6rem',
             color: '#7ababa',
             letterSpacing: '0.15em',
-          }}>
-            {searchLabel}
-          </div>
+            maxWidth: isMobile ? '100px' : '200px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>{searchLabel}</div>
 
-          <button
-            onClick={handleBack}
-            style={{
-              background: 'none',
-              border: '1px solid #2d6a6a',
-              color: '#7ababa',
-              padding: '6px 14px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.6rem',
-              letterSpacing: '0.2em',
-            }}
-          >
+          <button onClick={handleBack} style={{
+            background: 'none',
+            border: '1px solid #2d6a6a',
+            color: '#7ababa',
+            padding: '6px 10px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.55rem',
+            letterSpacing: '0.15em',
+          }}>
             new search
           </button>
         </div>
@@ -285,16 +286,17 @@ export default function Home() {
           overflow: 'hidden',
           position: 'relative',
           zIndex: 4,
+          flexDirection: 'row',
         }}>
 
-          {/* Left — player */}
+          {/* Player */}
           <div style={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '2rem',
+            padding: isMobile ? '1.5rem 1rem' : '2rem',
             gap: '1.5rem',
             position: 'relative',
           }}>
@@ -305,10 +307,11 @@ export default function Home() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '0.5rem',
-              padding: '2rem',
+              padding: isMobile ? '1.5rem 1rem' : '2rem',
               border: '1px solid #1a4a4a',
               background: 'rgba(8, 8, 16, 0.5)',
-              minWidth: '300px',
+              width: isMobile ? '100%' : 'auto',
+              minWidth: isMobile ? 'unset' : '300px',
               textAlign: 'center',
             }}>
               <p style={{
@@ -334,7 +337,7 @@ export default function Home() {
               )}
 
               <p style={{
-                fontSize: '1.1rem',
+                fontSize: isMobile ? '0.95rem' : '1.1rem',
                 color: '#c8e5e5',
                 letterSpacing: '0.05em',
               }}>
@@ -363,7 +366,7 @@ export default function Home() {
             {/* Controls */}
             <div style={{
               display: 'flex',
-              gap: '1.5rem',
+              gap: isMobile ? '1rem' : '1.5rem',
               alignItems: 'center',
               flexWrap: 'wrap',
               justifyContent: 'center',
@@ -374,11 +377,7 @@ export default function Home() {
               </button>
               <button onClick={skipTrack} style={controlBtnStyle}>skip →</button>
               <button onClick={handleRefresh} style={{ ...controlBtnStyle, color: '#4a8a8a' }}>↺ regenerate</button>
-              <p style={{
-                fontSize: '0.65rem',
-                color: '#5a9a9a',
-                letterSpacing: '0.1em',
-              }}>
+              <p style={{ fontSize: '0.65rem', color: '#5a9a9a', letterSpacing: '0.1em' }}>
                 {currentIndex + 1} / {tracks.length}
               </p>
             </div>
@@ -386,8 +385,8 @@ export default function Home() {
             {/* Scene controls */}
             <div style={{
               position: 'absolute',
-              bottom: '1.5rem',
-              left: '2rem',
+              bottom: isMobile ? '4.5rem' : '1.5rem',
+              left: isMobile ? '1rem' : '2rem',
               display: 'flex',
               gap: '0.75rem',
               alignItems: 'center',
@@ -396,16 +395,110 @@ export default function Home() {
               <button onClick={nextBg} style={{ ...controlBtnStyle, color: '#4a8a8a', fontSize: '0.6rem' }}>scene ⏭</button>
             </div>
 
+            {/* Mobile playlist toggle bar */}
+            {isMobile && (
+              <div
+                onClick={() => setPlaylistOpen(!playlistOpen)}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  padding: '0.85rem 1.25rem',
+                  background: 'rgba(8, 8, 16, 0.9)',
+                  borderTop: '1px solid #0d2b2b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <p style={{ fontSize: '0.7rem', color: '#c8e5e5', letterSpacing: '0.05em' }}>
+                    {current.name}
+                  </p>
+                  <p style={{ fontSize: '0.6rem', color: '#5a9a9a', letterSpacing: '0.1em' }}>
+                    {current.artist}
+                  </p>
+                </div>
+                <p style={{ fontSize: '0.6rem', color: '#2d6a6a', letterSpacing: '0.2em' }}>
+                  {playlistOpen ? '▼ close' : '▲ playlist'}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Playlist sidebar */}
+          {/* Desktop sidebar */}
+          {!isMobile && (
+            <div style={{
+              width: '280px',
+              borderLeft: '1px solid #0d2b2b',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'rgba(8, 8, 16, 0.5)',
+            }}>
+              <div style={{
+                padding: '1rem 1.25rem',
+                borderBottom: '1px solid #0d2b2b',
+                fontSize: '0.65rem',
+                color: '#5a9a9a',
+                letterSpacing: '0.25em',
+              }}>
+                PLAYLIST
+              </div>
+              {tracks.map((track, i) => (
+                <div
+                  key={i}
+                  onClick={() => selectTrack(i)}
+                  style={{
+                    padding: '0.85rem 1.25rem',
+                    borderBottom: '1px solid #0a1a1a',
+                    cursor: 'pointer',
+                    background: i === currentIndex ? 'rgba(45, 106, 106, 0.2)' : 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                    transition: 'background 0.2s ease',
+                  }}
+                >
+                  <p style={{
+                    fontSize: '0.72rem',
+                    color: i === currentIndex ? '#c8e5e5' : '#7ababa',
+                    letterSpacing: '0.05em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>{track.name}</p>
+                  <p style={{
+                    fontSize: '0.62rem',
+                    color: i === currentIndex ? '#5a9a9a' : '#3a6a6a',
+                    letterSpacing: '0.08em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>{track.artist}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Mobile slide-up playlist */}
+        {isMobile && (
           <div style={{
-            width: '280px',
-            borderLeft: '1px solid #0d2b2b',
-            overflowY: 'auto',
+            position: 'absolute',
+            bottom: playlistOpen ? 0 : '-100%',
+            left: 0,
+            right: 0,
+            height: '65vh',
+            background: '#080810',
+            borderTop: '1px solid #1a4a4a',
+            zIndex: 10,
+            transition: 'bottom 0.35s ease',
             display: 'flex',
             flexDirection: 'column',
-            background: 'rgba(8, 8, 16, 0.5)',
+            overflow: 'hidden',
           }}>
             <div style={{
               padding: '1rem 1.25rem',
@@ -413,50 +506,53 @@ export default function Home() {
               fontSize: '0.65rem',
               color: '#5a9a9a',
               letterSpacing: '0.25em',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}>
-              PLAYLIST
+              <span>PLAYLIST</span>
+              <span
+                onClick={() => setPlaylistOpen(false)}
+                style={{ cursor: 'pointer', color: '#2d6a6a', fontSize: '0.6rem' }}
+              >✕ close</span>
             </div>
-
-            {tracks.map((track, i) => (
-              <div
-                key={i}
-                onClick={() => selectTrack(i)}
-                style={{
-                  padding: '0.85rem 1.25rem',
-                  borderBottom: '1px solid #0a1a1a',
-                  cursor: 'pointer',
-                  background: i === currentIndex ? 'rgba(45, 106, 106, 0.2)' : 'transparent',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.25rem',
-                  transition: 'background 0.2s ease',
-                }}
-              >
-                <p style={{
-                  fontSize: '0.72rem',
-                  color: i === currentIndex ? '#c8e5e5' : '#7ababa',
-                  letterSpacing: '0.05em',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {track.name}
-                </p>
-                <p style={{
-                  fontSize: '0.62rem',
-                  color: i === currentIndex ? '#5a9a9a' : '#3a6a6a',
-                  letterSpacing: '0.08em',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {track.artist}
-                </p>
-              </div>
-            ))}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {tracks.map((track, i) => (
+                <div
+                  key={i}
+                  onClick={() => selectTrack(i)}
+                  style={{
+                    padding: '0.85rem 1.25rem',
+                    borderBottom: '1px solid #0a1a1a',
+                    cursor: 'pointer',
+                    background: i === currentIndex ? 'rgba(45, 106, 106, 0.2)' : 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                  }}
+                >
+                  <p style={{
+                    fontSize: '0.72rem',
+                    color: i === currentIndex ? '#c8e5e5' : '#7ababa',
+                    letterSpacing: '0.05em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>{track.name}</p>
+                  <p style={{
+                    fontSize: '0.62rem',
+                    color: i === currentIndex ? '#5a9a9a' : '#3a6a6a',
+                    letterSpacing: '0.08em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}>{track.artist}</p>
+                </div>
+              ))}
+            </div>
           </div>
+        )}
 
-        </div>
       </main>
     );
   }
@@ -474,27 +570,22 @@ export default function Home() {
       padding: '1rem',
     }}>
 
-      {/* Logo */}
-      <div
-        onClick={handleBack}
-        style={{
-          fontSize: '2rem',
-          color: '#4a9a9a',
-          letterSpacing: '0.6em',
-          marginBottom: '2rem',
-          fontWeight: 700,
-          fontStyle: 'italic',
-          cursor: 'pointer',
-        }}
-      >
+      <div onClick={handleBack} style={{
+        fontSize: isMobile ? '1.6rem' : '2rem',
+        color: '#4a9a9a',
+        letterSpacing: '0.6em',
+        marginBottom: '2rem',
+        fontWeight: 700,
+        fontStyle: 'italic',
+        cursor: 'pointer',
+      }}>
         haze.fm
       </div>
 
-      {/* Card */}
       <div style={{
         background: 'transparent',
         border: '1px solid #1a4a4a',
-        padding: '2.5rem 2rem',
+        padding: isMobile ? '1.75rem 1.25rem' : '2.5rem 2rem',
         width: '100%',
         maxWidth: '420px',
         display: 'flex',
@@ -516,11 +607,7 @@ export default function Home() {
 
         <div style={{ borderTop: '1px solid #0d2b2b' }} />
 
-        {/* Tab switcher */}
-        <div style={{
-          display: 'flex',
-          borderBottom: '1px solid #0d2b2b',
-        }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #0d2b2b' }}>
           {(['mood', 'artist'] as const).map((t) => (
             <button
               key={t}
@@ -545,7 +632,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Tab content */}
         {tab === 'mood' && (
           <Dropdown
             label="Mood"
