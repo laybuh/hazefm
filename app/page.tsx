@@ -329,7 +329,7 @@ export default function Home() {
                   marginBottom: '0.25rem',
                   fontStyle: 'italic',
                 }}>
-                  artist not found — playing something you might like instead
+                  Artist not found. Playing something you might like instead...
                 </p>
               )}
 

@@ -17,7 +17,7 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: "haze.fm",
-  description: "A music discovery app that generates playlists from your mood or an artist, with an immersive aesthetic visual experience.",
+  description: "A music discovery app that generates curated playlists from your mood or a favorite artist, paired with an immersive, aesthetic experience.",
 };
 
 export default function RootLayout({
